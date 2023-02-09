@@ -20,7 +20,7 @@ parser.add_argument('--epochs', default=300, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
-parser.add_argument('-b', '--batch_size', default=256, type=int, metavar='N',
+parser.add_argument('-b', '--batch_size', default=128, type=int, metavar='N',
                     help='mini-batch size (default: 256), this is the total '
                          'batch size of all GPUs on the current node when '
                          'using Data Parallel or Distributed Data Parallel')
@@ -83,7 +83,8 @@ def train(model, device, train_loader, optimizer, epoch, scaler, args):
     M = len(train_loader)
     total = 0
     correct = 0
-    s_time = time.time()
+    s_time = time.time() 
+    model.forward = model.train_forward
     for i, (images, labels) in enumerate(train_loader):
         optimizer.zero_grad()
         labels = labels.to(device)
@@ -96,9 +97,10 @@ def train(model, device, train_loader, optimizer, epoch, scaler, args):
                 scaler.step(optimizer)
                 scaler.update()
         else:
-            loss = model(images, labels)
-            loss.backward()
-            optimizer.step()
+            with torch.autograd.set_detect_anomaly(True):
+                loss = model(images, labels)
+                loss.backward()
+                optimizer.step()
 
         running_loss += loss.item()
         total += float(labels.size(0))
@@ -112,6 +114,7 @@ def test(model, test_loader, device):
     correct = 0
     total = 0
     model.eval()
+    model.forward = model.test_forward
     for batch_idx, (inputs, targets) in enumerate(test_loader):
         inputs = inputs.to(device)
         outputs = model(inputs)
