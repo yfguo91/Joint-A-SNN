@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+from IPython import embed
 
 class SeqToANNContainer(nn.Module):
     def __init__(self, *args):
@@ -11,11 +11,16 @@ class SeqToANNContainer(nn.Module):
             self.module = nn.Sequential(*args)
 
     def forward(self, x_seq: torch.Tensor):
-        y_shape = [x_seq.shape[0], x_seq.shape[1]]
-        y_seq = self.module(x_seq.flatten(0, 1).contiguous())
-        y_shape.extend(y_seq.shape[1:])
-        return y_seq.view(y_shape)
-
+        if len(x_seq.shape) == 5:
+            y_shape = [x_seq.shape[0], x_seq.shape[1]]
+            #embed()
+            y_seq = self.module(x_seq.flatten(0, 1).contiguous())
+            #embed()
+            y_shape.extend(y_seq.shape[1:])
+            return y_seq.view(y_shape)
+        else:
+            y_seq = self.module(x_seq)
+            return y_seq
 
 class SpikeModule(nn.Module):
 
@@ -50,6 +55,14 @@ def fire_function(gamma):
     return ZIF.apply
 
 
+def mem_update(x_in, mem, V_th, decay, gamma=1.0):
+    mem = mem * decay + x_in
+    spike = fire_function(gamma)(mem - V_th)
+    mem = mem * (1 - spike)
+    #mem = mem - spike
+    #spike = spike * Fire_ratio
+    return mem, spike
+
 class LIFSpike(nn.Module):
     def __init__(self, thresh=0.5, tau=0.25, gamma=1.0):
         super(LIFSpike, self).__init__()
@@ -59,12 +72,14 @@ class LIFSpike(nn.Module):
 
     def forward(self, x):
         mem = torch.zeros_like(x[:, 0])
+        #embed()
         spikes = []
         T = x.shape[1]
         for t in range(T):
-            mem = mem * self.tau + x[:, t, ...]
-            spike = fire_function(self.gamma)(mem - self.thresh)
-            mem = (1 - spike) * mem
+            #mem = mem * self.tau + x[:, t, ...]
+            #spike = fire_function(self.gamma)(mem - self.thresh)
+            #mem = (1 - spike) * mem
+            mem, spike = mem_update(x_in=x[:, t, ...], mem=mem, V_th=self.thresh, decay=self.tau, gamma=self.gamma)
             spikes.append(spike)
         return torch.stack(spikes, dim=1)
 
