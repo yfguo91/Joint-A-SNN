@@ -1,7 +1,7 @@
 import random
 import torch.linalg
 from models.layers import *
-from IPython import embed
+
 
 class ASConv2d(nn.Conv2d):
 
@@ -21,7 +21,6 @@ class ASConv2d(nn.Conv2d):
         self.register_parameter('sigma_snn', nn.Parameter(sigma.clone()))
 
     def forward(self, x):
-        
         if self.use_ann is True:
             weight_ann = (self.U @ torch.diag_embed(self.sigma_ann) @ self.V).permute([2, 3, 0, 1])
             return self._conv_forward(x, weight_ann, self.bias)
@@ -83,7 +82,6 @@ class ResStage(nn.Module):
 
     def forward(self, x):
         out = self.features(self.feature1(x))
-        #embed()
         if not self.use_ann:
             logit = self.avg_pool(out.mean(1))
             logit = logit.flatten(1)
@@ -99,9 +97,8 @@ class ResNet(nn.Module):
 
     def __init__(self, block, num_classes=10, in_c=3):
         super().__init__()
-        #self.conv1 = SeqToANNContainer(nn.Conv2d(in_c, 64, kernel_size=3, stride=1, padding=1, bias=False))
-        self.conv1 = SeqToANNContainer(ASConv2d(in_c, 64, ksize=3, stride=1, padding=1))
-        #self.conv1 = ASConv2d(in_c, 64, ksize=3, stride=1, padding=1)
+
+        self.conv1 = SeqToANNContainer(nn.Conv2d(in_c, 64, kernel_size=3, stride=1, padding=1, bias=False))
         self.bn_ann = nn.BatchNorm2d(64)
         self.bn_snn = SeqToANNContainer(nn.BatchNorm2d(64))
         self.spike = LIFSpike()
@@ -135,7 +132,7 @@ class ResNet(nn.Module):
                 m.use_ann = tag
 
     def train_forward(self, x, y, ):
-        #embed()
+
         self.use_ann_mode_tag(True)
         out = self.relu(self.bn_ann(self.conv1(x)))
         out, logit1, pred1 = self.stage1(out)
@@ -144,30 +141,24 @@ class ResNet(nn.Module):
         out, logit4, pred4 = self.stage4(out)
 
         self.use_ann_mode_tag(False)
-        #embed()
-        x2 = add_dimention(x.clone(), self.T)
-        outs = self.spike(self.bn_snn(self.conv1(x2)))
+        x = add_dimention(x, self.T)
+        outs = self.spike(self.bn_snn(self.conv1(x)))
         outs, logit1s, pred1s = self.stage1(outs)
         outs, logit2s, pred2s = self.stage2(outs)
         outs, logit3s, pred3s = self.stage3(outs)
         outs, logit4s, pred4s = self.stage4(outs)
 
         # ce_loss
-        #loss_ce = sum([eval('self.ce_loss(pred{}, y)'.format(i)) for i in range(1, 5)])
-        loss_ce = sum([self.ce_loss(pred1, y),self.ce_loss(pred2, y),self.ce_loss(pred3, y),self.ce_loss(pred4, y)])
-        #loss_ce += sum([eval('self.ce_loss(pred{}s, y)'.format(i)) for i in range(1, 5)])
-        loss_ce = loss_ce + sum([self.ce_loss(pred1s, y),self.ce_loss(pred2s, y),self.ce_loss(pred3s, y),self.ce_loss(pred4s, y)])
+        loss_ce = sum([eval('self.ce_loss(pred{}, y'.format(i)) for i in range(1, 5)])
+        loss_ce += sum([eval('self.ce_loss(pred{}s, y'.format(i)) for i in range(1, 5)])
         # kl loss
-        #loss_kl = sum([eval('self.kl_loss(pred{}s, pred{}.detach())'.format(i, i)) for i in range(1, 5)])
-        loss_kl = sum([self.kl_loss(pred1s, pred1.detach()),self.kl_loss(pred2s, pred2.detach()),self.kl_loss(pred3s, pred3.detach()),self.kl_loss(pred4s, pred4.detach())])
+        loss_kl = sum([eval('self.kl_loss(pred{}s, pred{}.detach()'.format(i, i)) for i in range(1, 5)])
         # norm loss
-        #loss_norm = sum([eval('self.mse_loss(pred{}s, pred{}.detach())'.format(i, i)) for i in range(1, 5)])
-        loss_norm = sum([self.mse_loss(pred1s, pred1.detach()),self.mse_loss(pred2s, pred2.detach()),self.mse_loss(pred3s, pred3.detach()),self.mse_loss(pred4s, pred4.detach())])
+        loss_norm = sum([eval('self.mse_loss(pred{}s, pred{}.detach()'.format(i, i)) for i in range(1, 5)])
         loss = loss_ce + self.lambda1 * loss_kl + self.lambda2 * loss_norm
-        #loss = sum([self.ce_loss(pred1, y),self.ce_loss(pred2s, y),self.ce_loss(pred3s, y),self.ce_loss(pred4s, y)])
         return loss
 
-    def test_forward(self, x):
+    def forward(self, x):
         # used for test
         self.use_ann_mode_tag(False)
         x = add_dimention(x, self.T)
