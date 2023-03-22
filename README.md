@@ -1,4 +1,4 @@
-#Joint A-SNN
+# Joint A-SNN
 
 Joint A-SNN: Joint Training of Artificial and Spiking Neural Networks via Self-Distillation and Weight Factorization
 
