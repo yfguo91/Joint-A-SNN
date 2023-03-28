@@ -190,7 +190,7 @@ if __name__ == '__main__':
 
     scaler = GradScaler() if args.amp else None
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=5e-4)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.1, weight_decay=5e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, eta_min=0, T_max=args.epochs)
     best_acc = 0
     best_epoch = 0
