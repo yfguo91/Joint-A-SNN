@@ -6,5 +6,3 @@ For Training, please use command:
 
 python main.py 
 --time (timestep) --epochs (total training epochs)  --batch_size (batchsize)
-
-Our initial code is in internalframe with our own Python packages.
